@@ -5,7 +5,8 @@
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
-	const int WIDTH = 960, HEIGHT = 640;	// 画面の幅と高さ
+	const int WIDTH = 960;	// 画面の幅
+	const int HEIGHT = 640;	// 画面の高さ
 	SetWindowText("テニスゲーム");
 	SetGraphMode(WIDTH, HEIGHT, 32);
 	ChangeWindowMode(TRUE);
@@ -31,12 +32,15 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	int score = 0;			// スコア
 	int higtScore = 1000;	// ハイスコア
 	int dx, dy;				// ボールとラケットの距離
-	int mouseX, mouseY;		// マウスの座標
+	int mouseX, mouseY;		// マウスの座標（Yは使用しない）
 
 	int startSE = LoadSoundMem("SE/gameStart.mp3");	// ゲーム開始のSE
 	int overSE = LoadSoundMem("SE/gameOver.mp3");	// ゲームオーバーのSE
 	int receiveSE = LoadSoundMem("SE/recieve.mp3");	// ボールを受けるSE
 	int reflectSE = LoadSoundMem("SE/reflect.mp3");	// ボールが壁に当たるSE
+
+	int ballColor = 0xffffff;	// ボールの色
+	int racketColor = 0xffffff;	// ラケットの色
 
 	while (1)
 	{
@@ -63,7 +67,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 				racketY = HEIGHT - 50;		// ラケットY位置は画面下部
 				score = 0;
 				scene = PLAY;
-				PlaySoundMem(startSE, DX_PLAYTYPE_NORMAL);
+				PlaySoundMem(startSE, DX_PLAYTYPE_BACK);
 			}
 			break;
 
@@ -71,16 +75,19 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 			ballX = ballX + ballVx;	// ボールのX移動
 			if (ballX < ballR && ballVx < 0) {			// 左壁に衝突
 				ballVx = -ballVx;
+				ballColor = 0xffff00;
 				PlaySoundMem(reflectSE, DX_PLAYTYPE_BACK);
 			}
 			if (ballX > WIDTH - ballR && ballVx > 0) {	// 右壁に衝突
 				ballVx = -ballVx;
+				ballColor = 0xffff00;
 				PlaySoundMem(reflectSE, DX_PLAYTYPE_BACK);
 			}
 
 			ballY = ballY + ballVy;	// ボールのY移動
 			if (ballY < ballR && ballVy < 0) {			// 上壁に衝突
 				ballVy = -ballVy;
+				ballColor = 0xffff00;
 				PlaySoundMem(reflectSE, DX_PLAYTYPE_BACK);
 			}
 			if (ballY > HEIGHT)		// 下に落ちた
@@ -90,11 +97,15 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 				PlaySoundMem(overSE, DX_PLAYTYPE_BACK);
 				break;
 			}
-			DrawCircle(ballX, ballY, ballR, 0xffffff, FALSE);	// ボールの描画
+			if (ballColor <= 0xffffff) {
+				ballColor += 0x000011;
+				if (ballColor > 0xffffff) ballColor = 0xffffff;
+			}
+			DrawCircle(ballX, ballY, ballR, ballColor, FALSE);	// ボールの描画
 #ifdef MOUSE_USE	// マウスで操作
 			DxLib::GetMousePoint(&mouseX, &mouseY);
 			racketX = mouseX;
-//			racketY = mouseY;
+//			racketY = mouseY;	// Y座標は固定なので使用しない
 			if (racketX < racketW / 2)	racketX = racketW / 2;
 			if (racketX > WIDTH - racketW / 2)	racketX = WIDTH - racketW / 2;
 #else				// キーボードで操作
@@ -108,13 +119,19 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 			}
 #endif
 			// ラケットの描画
-			DxLib::DrawBox(racketX - racketW / 2, racketY - racketH / 2,racketX + racketW / 2, racketY + racketH / 2, 0xffffff, FALSE);
+			if (racketColor <= 0xffffff) {
+				racketColor += 0x000011;
+				if (racketColor > 0xffffff) racketColor = 0xffffff;
+			}
+			DxLib::DrawBox(racketX - racketW / 2, racketY - racketH / 2,racketX + racketW / 2, racketY + racketH / 2, racketColor, FALSE);
 
-			dx = ballX - racketX;
-			dy = ballY - racketY;
+			dx = ballX - racketX;	// ボールとラケットのX方向距離
+			dy = ballY - racketY;	// ボールとラケットのY方向距離
 			if (-racketW / 2 - 10 < dx && dx < racketW / 2 + 10 && -20 < dy && dy < 0) {	// ボールがラケットに衝突
 				ballVy = -5 - rand() % 5;	// ボールのY速度をランダムに変化させる
 				PlaySoundMem(receiveSE, DX_PLAYTYPE_BACK);
+				racketColor = 0xffff00; // ラケットの色を黄色に変える
+				ballColor = 0xffff00;	// ボールの色を黄色に変える
 				score = score + 100;
 				if (score > higtScore)	higtScore = score;	// ハイスコアの更新
 			}
@@ -125,7 +142,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 			DxLib::DrawString(WIDTH / 2 - 40 / 2 * 9 / 2, HEIGHT / 3, "GAME OVER", 0xffffff);	// ゲームオーバーの表示
 			if (timer > 60 * 5)	scene = TITLE;
 			break;
-
 		}
 
 		SetFontSize(30);
